@@ -4775,6 +4775,28 @@ Private.event_prototypes = {
     hasItemID = true,
     automaticrequired = true
   },
+  ["Item Type Equipped"] = {
+    type = "item",
+    events = {
+      ["events"] = {
+        "UNIT_INVENTORY_CHANGED",
+        "PLAYER_EQUIPMENT_CHANGED",
+      }
+    },
+    internal_events = { "WA_DELAYED_PLAYER_ENTERING_WORLD", },
+    force_events = "UNIT_INVENTORY_CHANGED",
+    name = L["Item Type Equipped"],
+    args = {
+      {
+        name = "itemTypeName",
+        display = L["Item Type"],
+        type = "multiselect",
+        values = "item_weapon_types",
+        test = "IsEquippedItemType(WeakAuras.GetItemSubClassInfo(%s))"
+      },
+    },
+    automaticrequired = true
+  },
   ["Equipment Set"] = {
     type = "item",
     events = {
