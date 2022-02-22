@@ -67,7 +67,11 @@ local B64tobyte = {
   ["4"]=56,["5"]=57,["6"]=58,["7"]=59,["8"]=60,["9"]=61,["("]=62,[")"]=63
 }
 
-local USE_ENCODING = GetRealmName() ~= "Sindragosa"
+local SERVER_WITH_NO_ENCODING = {
+  ["Sindragosa"] = true
+}
+
+local USE_ENCODING = not SERVER_WITH_NO_ENCODING[GetRealmName()]
 local USE_CROSSREALM_MESSAGE = false
 -- This code is based on the Encode7Bit algorithm from LibCompress
 -- Credit goes to Galmok (galmok@gmail.com)
