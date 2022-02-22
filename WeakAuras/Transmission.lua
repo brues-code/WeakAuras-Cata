@@ -670,13 +670,13 @@ local compressedTablesCache = {}
 
 function TableToString(inTable, forChat)
   local serialized 
-  if USE_ENCODING then
+  if USE_ENCODING or forChat then
     serialized = LibSerialize:SerializeEx(configForLS, inTable)
   else
     serialized = Serializer:Serialize(inTable)
   end
   local compressed = serialized
-  if USE_ENCODING then
+  if USE_ENCODING or forChat then
     -- get from / add to cache
     if compressedTablesCache[serialized] then
       compressed = compressedTablesCache[serialized].compressed
@@ -697,12 +697,10 @@ function TableToString(inTable, forChat)
   end
 
   local encoded = compressed
-  if USE_ENCODING then
-    if(forChat) then
-      encoded = LibDeflate:EncodeForPrint(compressed)
-    else
-      encoded = LibDeflate:EncodeForWoWAddonChannel(compressed)
-    end
+  if(forChat) then
+    encoded = LibDeflate:EncodeForPrint(compressed)
+  elseif USE_ENCODING then
+    encoded = LibDeflate:EncodeForWoWAddonChannel(compressed)
   end
   return "!WA:2!" .. encoded
 end
@@ -721,16 +719,14 @@ function StringToTable(inString, fromChat)
   end
 
   local decoded = encoded
-  if USE_ENCODING then
-    if(fromChat) then
-      if encodeVersion > 0 then
-        decoded = LibDeflate:DecodeForPrint(encoded)
-      else
-        decoded = decodeB64(encoded)
-      end
+  if(fromChat) then
+    if encodeVersion > 0 then
+      decoded = LibDeflate:DecodeForPrint(encoded)
     else
-      decoded = LibDeflate:DecodeForWoWAddonChannel(encoded)
+      decoded = decodeB64(encoded)
     end
+  elseif USE_ENCODING then
+    decoded = LibDeflate:DecodeForWoWAddonChannel(encoded)
   end
 
   if not decoded then
@@ -738,7 +734,7 @@ function StringToTable(inString, fromChat)
   end
 
   local decompressed, errorMsg = decoded, "unknown compression method"
-  if USE_ENCODING then
+  if USE_ENCODING or fromChat then
     if encodeVersion > 0 then
       decompressed = LibDeflate:DecompressDeflate(decoded)
     else
@@ -750,7 +746,7 @@ function StringToTable(inString, fromChat)
   end
 
   local success, deserialized
-  if encodeVersion < 2 or not USE_ENCODING then
+  if encodeVersion < 2 or (not USE_ENCODING and not fromChat) then
     success, deserialized = Serializer:Deserialize(decompressed)
   else
     success, deserialized = LibSerialize:Deserialize(decompressed)
@@ -766,7 +762,7 @@ function WeakAuras.DisplayToString(id, forChat)
   if(data) then
     data.uid = data.uid or GenerateUniqueID()
     local children = data.controlledChildren;
-    if USE_ENCODING then
+    if USE_ENCODING or forChat then
       data = CompressDisplay(data)
     end
     local transmit = {
@@ -797,7 +793,7 @@ function WeakAuras.DisplayToString(id, forChat)
           else
             childData.uid = GenerateUniqueID()
           end
-          if USE_ENCODING then
+          if USE_ENCODING or forChat then
             transmit.c[index] = CompressDisplay(childData);
           else
             transmit.c[index] = childData;
