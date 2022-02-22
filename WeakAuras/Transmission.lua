@@ -762,12 +762,10 @@ function WeakAuras.DisplayToString(id, forChat)
   if(data) then
     data.uid = data.uid or GenerateUniqueID()
     local children = data.controlledChildren;
-    if USE_ENCODING or forChat then
-      data = CompressDisplay(data)
-    end
+    local transmitData = CompressDisplay(data);
     local transmit = {
       m = "d",
-      d = data,
+      d = transmitData,
       v = 1421, -- Version of Transmisson, won't change anymore.
       s = versionString
     };
@@ -793,11 +791,7 @@ function WeakAuras.DisplayToString(id, forChat)
           else
             childData.uid = GenerateUniqueID()
           end
-          if USE_ENCODING or forChat then
-            transmit.c[index] = CompressDisplay(childData);
-          else
-            transmit.c[index] = childData;
-          end
+          transmit.c[index] = CompressDisplay(childData);
         end
       end
     end
