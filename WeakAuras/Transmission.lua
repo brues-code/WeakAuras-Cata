@@ -67,6 +67,7 @@ local B64tobyte = {
   ["4"]=56,["5"]=57,["6"]=58,["7"]=59,["8"]=60,["9"]=61,["("]=62,[")"]=63
 }
 
+local USE_ENCODING = GetRealmName() ~= "Sindragosa"
 -- This code is based on the Encode7Bit algorithm from LibCompress
 -- Credit goes to Galmok (galmok@gmail.com)
 local decodeB64Table = {}
@@ -663,7 +664,7 @@ end
 local compressedTablesCache = {}
 
 function TableToString(inTable, forChat)
-  local serialized = LibSerialize:SerializeEx(configForLS, inTable)
+  local serialized = USE_ENCODING and LibSerialize:SerializeEx(configForLS, inTable) or Serializer:Serialize(inTable)
   local compressed
   -- get from / add to cache
   if compressedTablesCache[serialized] then
@@ -682,13 +683,16 @@ function TableToString(inTable, forChat)
       compressedTablesCache[k] = nil
     end
   end
-  local encoded = "!WA:2!"
-  if(forChat) then
-    encoded = encoded .. LibDeflate:EncodeForPrint(compressed)
-  else
-    encoded = encoded .. LibDeflate:EncodeForWoWAddonChannel(compressed)
+
+  local encoded = serialized
+  if USE_ENCODING then
+    if(forChat) then
+      encoded = encoded .. LibDeflate:EncodeForPrint(serialized)
+    else
+      encoded = encoded .. LibDeflate:EncodeForWoWAddonChannel(serialized)
+    end
   end
-  return encoded
+  return "!WA:2!" .. encoded
 end
 
 function StringToTable(inString, fromChat)
@@ -704,29 +708,33 @@ function StringToTable(inString, fromChat)
     encoded, encodeVersion = inString:gsub("^%!", "")
   end
 
-  local decoded
-  if(fromChat) then
-    if encodeVersion > 0 then
-      decoded = LibDeflate:DecodeForPrint(encoded)
+  local decoded = encoded
+  if USE_ENCODING then
+    if(fromChat) then
+      if encodeVersion > 0 then
+        decoded = LibDeflate:DecodeForPrint(encoded)
+      else
+        decoded = decodeB64(encoded)
+      end
     else
-      decoded = decodeB64(encoded)
+      decoded = LibDeflate:DecodeForWoWAddonChannel(encoded)
     end
-  else
-    decoded = LibDeflate:DecodeForWoWAddonChannel(encoded)
   end
 
   if not decoded then
     return "Error decoding."
   end
 
-  local decompressed, errorMsg = nil, "unknown compression method"
-  if encodeVersion > 0 then
-    decompressed = LibDeflate:DecompressDeflate(decoded)
-  else
-    decompressed, errorMsg = Compresser:Decompress(decoded)
-  end
-  if not(decompressed) then
-    return "Error decompressing: " .. errorMsg
+  local decompressed, errorMsg = decoded, "unknown compression method"
+  if USE_ENCODING then
+    if encodeVersion > 0 then
+      decompressed = LibDeflate:DecompressDeflate(decoded)
+    else
+      decompressed, errorMsg = Compresser:Decompress(decoded)
+    end
+    if not(decompressed) then
+      return "Error decompressing: " .. errorMsg
+    end
   end
 
   local success, deserialized
@@ -745,11 +753,10 @@ function WeakAuras.DisplayToString(id, forChat)
   local data = WeakAuras.GetData(id);
   if(data) then
     data.uid = data.uid or GenerateUniqueID()
-    local transmitData = CompressDisplay(data);
     local children = data.controlledChildren;
-       local transmit = {
+    local transmit = {
       m = "d",
-      d = transmitData,
+      d = data,
       v = 1421, -- Version of Transmisson, won't change anymore.
       s = versionString
     };
@@ -775,7 +782,7 @@ function WeakAuras.DisplayToString(id, forChat)
           else
             childData.uid = GenerateUniqueID()
           end
-          transmit.c[index] = CompressDisplay(childData);
+          transmit.c[index] = childData;
         end
       end
     end
@@ -820,7 +827,10 @@ end
 function Private.DataToString(id)
   local data = WeakAuras.GetData(id)
   if data then
-    return Private.SerializeTable(data):gsub("|", "||")
+    if USE_ENCODING then
+      return Private.SerializeTable(data):gsub("|", "||")
+    end
+    return Serializer:Serialize(data):gsub("|", "||")
   end
 end
 
@@ -1712,7 +1722,7 @@ WeakAuras.ImportString = WeakAuras.Import
 
 local function crossRealmSendCommMessage(prefix, text, target, queueName, callbackFn, callbackArg)
   local chattype = "WHISPER"
---[[
+
   if target then
     if UnitInRaid(target) then
       chattype = "RAID"
@@ -1720,9 +1730,12 @@ local function crossRealmSendCommMessage(prefix, text, target, queueName, callba
     elseif UnitInParty(target) then
       chattype = "PARTY"
       text = ("§§%s:%s"):format(target, text)
+    elseif UnitIsInMyGuild(target) then
+      chattype = "GUILD"
+      text = ("§§%s:%s"):format(target, text)
     end
   end
-]]
+
   Comm:SendCommMessage(prefix, text, chattype, target, queueName, callbackFn, callbackArg)
 end
 
@@ -1787,16 +1800,12 @@ Comm:RegisterComm("WeakAurasProg", function(prefix, message, distribution, sende
 end)
 
 Comm:RegisterComm("WeakAuras", function(prefix, message, distribution, sender)
-  if distribution == "PARTY" or distribution == "RAID" then
+  if distribution == "PARTY" or distribution == "RAID" or distribution == "GUILD" then
     local dest, msg = string.match(message, "^§§([^:]+):(.+)$")
-    if dest then
-      local dName, dServer = string.match(dest, "^(.*)-(.*)$")
-      local myName, myServer = UnitName("player")
-      if myName == dName and myServer == dServer then
-        message = msg
-      else
-        return
-      end
+    if dest == UnitName("player") then
+      message = msg
+    else
+      return
     end
   end
   local received = StringToTable(message);
