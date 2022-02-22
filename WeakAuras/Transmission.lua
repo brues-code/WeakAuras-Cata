@@ -181,7 +181,7 @@ local function filterFunc(_, event, msg, player, l, cs, t, flag, channelId, ...)
     end
   until(done)
   if newMsg ~= "" then
-    if event == "CHAT_MSG_WHISPER" and not UnitInRaid(player) and not UnitInParty(player) and not UnitIsInMyGuild(player) and not is_friend(player) then -- XXX: Need a guild check
+    if event == "CHAT_MSG_WHISPER" and not UnitInRaid(player) and not UnitInParty(player) and not UnitIsInMyGuild(player) and not is_friend(player) then
       return true -- Filter strangers
     else
       return false, newMsg, player, l, cs, t, flag, channelId, ...;
