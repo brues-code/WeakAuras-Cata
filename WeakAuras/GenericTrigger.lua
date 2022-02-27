@@ -75,6 +75,8 @@ local loaded_unit_events = {};
 local loaded_auras = {}; -- id to bool map
 local timers = WeakAuras.timers;
 
+local LGT = LibStub("LibGroupTalents-1.0")
+
 -- Local functions
 local LoadEvent, HandleEvent, HandleUnitEvent, TestForTriState, TestForToggle, TestForLongString, TestForMultiSelect
 local ConstructTest, ConstructFunction
@@ -2385,6 +2387,18 @@ function WeakAuras.WatchUnitChange(unit)
       watchUnitChange.inRaid = inRaid
       Private.StopProfileSystem("generictrigger unit change");
     end)
+
+    
+    LGT:RegisterCallback("LibGroupTalents_RoleChange", function(event, guid, unit, ...)
+      Private.StartProfileSystem("generictrigger unit change");
+
+      if watchUnitChange.unitRoles[unit] ~= newRole then
+        watchUnitChange.unitRoles[unit] = newRole
+        WeakAuras.ScanEvents("UNIT_ROLE_CHANGED_" .. unit, unit)
+      end
+
+      Private.StopProfileSystem("generictrigger unit change");
+    end)
   end
   watchUnitChange.unitChangeGUIDS = watchUnitChange.unitChangeGUIDS or {}
   watchUnitChange.unitChangeGUIDS[unit] = UnitGUID(unit) or ""
@@ -2648,51 +2662,6 @@ end
 
 -- LGT
 do
-  local LGT = LibStub("LibGroupTalents-1.0")
-  local registeredLGTEvents = {}
-  local raidInfo = {}
-
-  local function lgtEventCallback(event, ...)
-    if event == "LibGroupTalents_RoleChange" then
-      local guid, unit, newRole, oldRole = ...
-      if not raidInfo[guid] then
-        raidInfo[guid] = {}
-      end
-      raidInfo[guid].role = newRole
-      WeakAuras.ScanEvents(event, ...)
-    end
-  end
-
-  function WeakAuras.RegisterLGTCallback(event)
-    if registeredLGTEvents[event] then
-      return
-    end
-    if LGT then
-      LGT:RegisterCallback(event, lgtEventCallback)
-      registeredLGTEvents[event] = true
-    end
-  end
-
-  function WeakAuras.GetLGTRoleByUnit(unitId)
-    local unitGUID = UnitGUID(unitId)
-    if not unitGUID then return end
-    local member = raidInfo[unitGUID]
-    if not member then
-      raidInfo[unitGUID] = {}
-      member = raidInfo[unitGUID]
-    end
-
-    local memberRole = member.role
-    if not memberRole then
-        local unitRole = LGT:GetUnitRole(unitId)
-        if unitRole then
-            memberRole = unitRole
-            raidInfo[unitGUID].role = unitRole
-        end
-    end
-    return memberRole
-  end
-
   function WeakAuras.LGTRoleMatch(foundRole)
     local roles = {
       tank = "TANK",
@@ -2703,9 +2672,9 @@ do
     return roles[foundRole]
   end
 
-  function WeakAuras.UnitHasRole(unitId, role)
-    local foundRole = WeakAuras.GetLGTRoleByUnit(unitId)
-    return WeakAuras.LGTRoleMatch(foundRole) == role
+  function WeakAuras.UnitGroupRolesAssigned(unitId)
+    local foundRole = LGT:GetUnitRole(unitId)
+    return WeakAuras.LGTRoleMatch(foundRole)
   end
 end
 

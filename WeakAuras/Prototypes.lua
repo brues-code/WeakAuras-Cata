@@ -851,7 +851,7 @@ Private.load_prototype = {
       type = "multiselect",
       values = "role_types",
       init = "arg",
-      events = {"ACTIVE_TALENT_GROUP_CHANGED", "PLAYER_TALENT_UPDATE", "LibGroupTalents_RoleChange"}
+      events = {"LibGroupTalents_RoleChange"}
     },
     {
       name = "talent",
@@ -979,6 +979,20 @@ local function AddUnitChangeInternalEvents(triggerUnit, t)
       tinsert(t, "UNIT_CHANGED_" .. string.lower(triggerUnit))
       WeakAuras.WatchUnitChange(triggerUnit)
     end
+  end
+end
+
+local function AddUnitRoleChangeInternalEvents(triggerUnit, t)
+  if (triggerUnit == nil) then
+    return
+  end
+
+  if Private.multiUnitUnits[triggerUnit] then
+    for unit in pairs(Private.multiUnitUnits[triggerUnit]) do
+      tinsert(t, "UNIT_ROLE_CHANGED_" .. string.lower(unit))
+    end
+  else
+    tinsert(t, "UNIT_ROLE_CHANGED_" .. string.lower(triggerUnit))
   end
 end
 
@@ -1707,6 +1721,7 @@ Private.event_prototypes = {
       local unit = trigger.unit
       local result = {}
       AddUnitChangeInternalEvents(unit, result)
+      AddUnitRoleChangeInternalEvents(unit, result)
 
       return result
     end,
@@ -1852,6 +1867,18 @@ Private.event_prototypes = {
         values = "class_types",
         store = true,
         conditionType = "select"
+      },
+      {
+        name = "role",
+        display = L["Assigned Role"],
+        type = "select",
+        init = "WeakAuras.UnitGroupRolesAssigned(unit)",
+        values = "role_types",
+        store = true,
+        conditionType = "select",
+        enable = function(trigger)
+          return (trigger.unit == "group" or trigger.unit == "raid" or trigger.unit == "party")
+        end
       },
       {
         name = "ignoreSelf",
