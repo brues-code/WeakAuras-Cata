@@ -1027,12 +1027,12 @@ Private.subevent_suffix_types = {
 }
 
 Private.power_types = {
-  [0] = MANA,
-  [1] = RAGE,
-  [2] = FOCUS,
-  [3] = ENERGY,
-  [4] = HAPPINESS,
-  [6] = RUNIC_POWER,
+  [SPELL_POWER_MANA] = MANA,
+  [SPELL_POWER_RAGE] = RAGE,
+  [SPELL_POWER_FOCUS] = FOCUS,
+  [SPELL_POWER_ENERGY] = ENERGY,
+  [SPELL_POWER_HAPPINESS] = HAPPINESS,
+  [SPELL_POWER_RUNIC_POWER] = RUNIC_POWER,
 }
 
 Private.miss_types = {
