@@ -846,6 +846,14 @@ Private.load_prototype = {
       init = "arg"
     },
     {
+      name = "role",
+      display = L["Spec Role"],
+      type = "multiselect",
+      values = "role_types",
+      init = "arg",
+      events = {"ACTIVE_TALENT_GROUP_CHANGED", "PLAYER_TALENT_UPDATE", "LibGroupTalents_RoleChange"}
+    },
+    {
       name = "talent",
       display = L["Talent"],
       type = "multiselect",

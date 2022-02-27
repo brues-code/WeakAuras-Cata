@@ -34,6 +34,7 @@ local LDB = LibStub("LibDataBroker-1.1")
 local LDBIcon = LibStub("LibDBIcon-1.0")
 local LCG = LibStub("LibCustomGlow-1.0")
 local LGF = LibStub("LibGetFrame-1.0")
+local LGT = LibStub("LibGroupTalents-1.0")
 
 local timer = WeakAurasTimers
 WeakAuras.timer = timer
@@ -261,6 +262,7 @@ do
 end
 
 local playerLevel = UnitLevel("player");
+local playerRole;
 
 -- Custom Action Functions, keyed on id, "init" / "start" / "finish"
 Private.customActionsFunctions = {};
@@ -1189,6 +1191,11 @@ local function scanForLoadsImpl(toCheck, event, arg1, ...)
     playerLevel = arg1;
   end
 
+  if (event == "LibGroupTalents_RoleChange") then
+    local _, lgtRole = ...
+    playerRole = WeakAuras.LGTRoleMatch(lgtRole)
+  end
+
   if toCheck == nil or next(toCheck) == nil then
     return
   end
@@ -1218,8 +1225,8 @@ local function scanForLoadsImpl(toCheck, event, arg1, ...)
     if (data and not data.controlledChildren) then
       local loadFunc = loadFuncs[id];
       local loadOpt = loadFuncsForOptions[id];
-      shouldBeLoaded = loadFunc and loadFunc("ScanForLoads_Auras", inCombat, alive, pvp, vehicle, vehicleUi, group, player, realm, class, faction, playerLevel, zone, zoneId, size, difficulty);
-      couldBeLoaded =  loadOpt and loadOpt("ScanForLoads_Auras",   inCombat, alive, pvp, vehicle, vehicleUi, group, player, realm, class, faction, playerLevel, zone, zoneId, size, difficulty);
+      shouldBeLoaded = loadFunc and loadFunc("ScanForLoads_Auras", inCombat, alive, pvp, vehicle, vehicleUi, group, player, realm, class, playerRole, faction, playerLevel, zone, zoneId, size, difficulty);
+      couldBeLoaded =  loadOpt and loadOpt("ScanForLoads_Auras",   inCombat, alive, pvp, vehicle, vehicleUi, group, player, realm, class, playerRole, faction, playerLevel, zone, zoneId, size, difficulty);
 
       if(shouldBeLoaded and not loaded[id]) then
         changed = changed + 1;
@@ -1280,6 +1287,7 @@ local loadFrame = CreateFrame("FRAME");
 WeakAuras.loadFrame = loadFrame;
 WeakAuras.frames["Display Load Handling"] = loadFrame;
 
+loadFrame:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED");
 loadFrame:RegisterEvent("PLAYER_TALENT_UPDATE");
 loadFrame:RegisterEvent("SPELL_UPDATE_USABLE");
 loadFrame:RegisterEvent("PLAYER_DIFFICULTY_CHANGED");
@@ -1317,13 +1325,21 @@ function Private.RegisterLoadEvents()
     Private.StopProfileSystem("load");
   end);
 
-  unitLoadFrame:SetScript("OnEvent", function(frame, e, arg1, ...)
+  unitLoadFrame:SetScript("OnEvent", function(frame, e, unitId, ...)
     Private.StartProfileSystem("load");
-    if (arg1 == "player") then
-      Private.ScanForLoads(nil, e, arg1, ...)
+    if UnitIsUnit("player", unitId) then
+      Private.ScanForLoads(nil, e, unitId, ...)
     end
     Private.StopProfileSystem("load");
   end);
+
+  LGT:RegisterCallback("LibGroupTalents_RoleChange", function(event, guid, unitId, ...)
+    Private.StartProfileSystem("load");
+    if UnitIsUnit("player", unitId) then
+      Private.ScanForLoads(nil, event, guid, unitId, ...)
+    end
+    Private.StopProfileSystem("load");
+  end)
 end
 
 local function UnloadAll()

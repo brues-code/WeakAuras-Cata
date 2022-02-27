@@ -2646,6 +2646,69 @@ do
   end
 end
 
+-- LGT
+do
+  local LGT = LibStub("LibGroupTalents-1.0")
+  local registeredLGTEvents = {}
+  local raidInfo = {}
+
+  local function lgtEventCallback(event, ...)
+    if event == "LibGroupTalents_RoleChange" then
+      local guid, unit, newRole, oldRole = ...
+      if not raidInfo[guid] then
+        raidInfo[guid] = {}
+      end
+      raidInfo[guid].role = newRole
+      WeakAuras.ScanEvents(event, ...)
+    end
+  end
+
+  function WeakAuras.RegisterLGTCallback(event)
+    if registeredLGTEvents[event] then
+      return
+    end
+    if LGT then
+      LGT:RegisterCallback(event, lgtEventCallback)
+      registeredLGTEvents[event] = true
+    end
+  end
+
+  function WeakAuras.GetLGTRoleByUnit(unitId)
+    local unitGUID = UnitGUID(unitId)
+    if not unitGUID then return end
+    local member = raidInfo[unitGUID]
+    if not member then
+      raidInfo[unitGUID] = {}
+      member = raidInfo[unitGUID]
+    end
+
+    local memberRole = member.role
+    if not memberRole then
+        local unitRole = LGT:GetUnitRole(unitId)
+        if unitRole then
+            memberRole = unitRole
+            raidInfo[unitGUID].role = unitRole
+        end
+    end
+    return memberRole
+  end
+
+  function WeakAuras.LGTRoleMatch(foundRole)
+    local roles = {
+      tank = "TANK",
+      healer = "HEALER",
+      caster = "DAMAGER",
+      melee = "DAMAGER"
+    }
+    return roles[foundRole]
+  end
+
+  function WeakAuras.UnitHasRole(unitId, role)
+    local foundRole = WeakAuras.GetLGTRoleByUnit(unitId)
+    return WeakAuras.LGTRoleMatch(foundRole) == role
+  end
+end
+
 -- BigWigs
 do
   local registeredBigWigsEvents = {}
