@@ -56,6 +56,11 @@ RAID_CLASS_COLORS.SHAMAN.colorStr = "ff0070de"
 RAID_CLASS_COLORS.WARRIOR.colorStr = "ffc79c6e"
 RAID_CLASS_COLORS.DEATHKNIGHT.colorStr = "ffc41f3b"
 
+--Inline role icons
+INLINE_TANK_ICON = "|TInterface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES.blp:16:16:0:0:64:64:0:19:22:41|t";
+INLINE_HEALER_ICON = "|TInterface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES.blp:16:16:0:0:64:64:20:39:1:20|t";
+INLINE_DAMAGER_ICON = "|TInterface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES.blp:16:16:0:0:64:64:20:39:22:41|t"
+
 if not SmoothStatusBarMixin then
 	function Lerp(startValue, endValue, amount)
 		return (1 - amount) * startValue + amount * endValue;
