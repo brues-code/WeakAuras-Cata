@@ -825,6 +825,22 @@ Private.faction_group = {
   Neutral = L["Neutral"]
 }
 
+Private.tracking_types = {};
+local function update_tracking()
+  wipe(Private.tracking_types);
+
+  for i = 1, GetNumTrackingTypes() do
+    local name, texture = GetTrackingInfo(i)
+    if(name) then
+      Private.tracking_types[i] = i.." - "..name
+    end
+  end
+end
+local tracking_frame = CreateFrame("frame");
+tracking_frame:RegisterEvent("MINIMAP_UPDATE_TRACKING")
+tracking_frame:RegisterEvent("PLAYER_LOGIN")
+tracking_frame:SetScript("OnEvent", update_tracking);
+
 Private.form_types = {};
 local function update_forms()
   wipe(Private.form_types);

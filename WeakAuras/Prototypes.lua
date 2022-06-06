@@ -4412,30 +4412,162 @@ Private.event_prototypes = {
       },
     },
     nameFunc = function(trigger)
-      local _, class = UnitClass("player");
       local name
-      if(class == trigger.class) then
-        local form = GetShapeshiftForm();
+      if trigger.use_form and trigger.form and trigger.form.single then
+        -- Single selection
+        local form = trigger.form.single
         if form > 0 then
-          local _, name = GetShapeshiftFormInfo(form);
+          name = select(2,GetShapeshiftFormInfo(form))
         else
           name = "Humanoid";
         end
-        return name;
-      else
-        local types = WeakAuras[class:lower().."_form_types"];
-        if(types) then
-          return types[GetShapeshiftForm()];
+      elseif trigger.use_form == false and trigger.form and trigger.form.multi then
+        for form in pairs(trigger.form.multi) do
+          local active
+          if form > 0 then
+            name, active = select(2,GetShapeshiftFormInfo(form))
+          else
+            name = "Humanoid";
+          end
+          if not trigger.use_inverse and active then
+            break
+          end
         end
       end
+      return name
     end,
     iconFunc = function(trigger)
-      local icon = "Interface\\Icons\\Spell_Nature_WispSplode"
-      local form = GetShapeshiftForm()
-      if form and form > 0 then
-        icon = GetShapeshiftFormInfo(form);
+      local icon
+      if trigger.use_form and trigger.form and trigger.form.single then
+        -- Single selection
+        local form = trigger.form.single
+        if form > 0 then
+          icon = GetShapeshiftFormInfo(form)
+        end
+      elseif trigger.use_form == false and trigger.form and trigger.form.multi then
+        for form in pairs(trigger.form.multi) do
+          local active
+          if form > 0 then
+            icon, _, active = GetShapeshiftFormInfo(form)
+          end
+          if not trigger.use_inverse and active then
+            break
+          end
+        end
       end
       return icon or "Interface\\Icons\\Spell_Nature_WispSplode"
+    end,
+    automaticrequired = true
+  },
+  
+  ["MinimapTracking"] = {
+    type = "unit",
+    events = {
+      ["events"] = {
+        "MINIMAP_UPDATE_TRACKING"
+      }
+    },
+    internal_events = { "WA_DELAYED_PLAYER_ENTERING_WORLD" },
+    force_events = "WA_DELAYED_PLAYER_ENTERING_WORLD",
+    name = L["Minimap Tracking"],
+    init = function(trigger)
+      local inverse = trigger.use_inverse;
+      local ret = [[
+        local active = false
+      ]]
+      if trigger.use_tracking and trigger.tracking and trigger.tracking.single then
+        -- Single selection
+        ret = ret .. [[
+          active = select(3, GetTrackingInfo(%d))
+        ]]
+        if inverse then
+          ret = ret .. [[
+            active = not active
+          ]]
+        end
+        return ret:format(trigger.form.single)
+      elseif trigger.use_tracking == false and trigger.tracking and trigger.tracking.multi then
+        for index in pairs(trigger.tracking.multi) do
+          local ret2 = [[
+            if not active then
+              active = select(3, GetTrackingInfo(%d))
+            end
+          ]]
+          ret = ret .. ret2:format(index)
+        end
+        if inverse then
+          ret = ret .. [[
+            active = not active
+          ]]
+        end
+        return ret
+      elseif trigger.use_tracking == nil then
+        ret = ret .. [[
+          active = true
+        ]]
+        return ret
+      end
+    end,
+    statesParameter = "one",
+    args = {
+      {
+        name = "tracking",
+        display = L["Tracking"],
+        type = "multiselect",
+        values = "tracking_types",
+        test = "active",
+        store = true,
+        conditionType = "select"
+      },
+      {
+        name = "inverse",
+        display = L["Inverse"],
+        type = "toggle",
+        test = "true",
+        enable = function(trigger) return type(trigger.use_tracking) == "boolean" end
+      },
+    },
+    nameFunc = function(trigger)
+      local name
+      if trigger.use_tracking and trigger.tracking and trigger.tracking.single then
+        -- Single selection
+        local tracking = trigger.tracking.single
+        if tracking > 0 then
+          name = GetTrackingInfo(tracking)
+        end
+      elseif trigger.use_tracking == false and trigger.tracking and trigger.tracking.multi then
+        for tracking in pairs(trigger.tracking.multi) do
+          local active
+          if tracking > 0 then
+            name, _, active = GetTrackingInfo(tracking)
+          end
+          if not trigger.use_inverse and active then
+            break
+          end
+        end
+      end
+      return name
+    end,
+    iconFunc = function(trigger)
+      local icon
+      if trigger.use_tracking and trigger.tracking and trigger.tracking.single then
+        -- Single selection
+        local tracking = trigger.tracking.single
+        if tracking > 0 then
+          icon = select(2,GetTrackingInfo(tracking))
+        end
+      elseif trigger.use_tracking == false and trigger.tracking and trigger.tracking.multi then
+        for tracking in pairs(trigger.tracking.multi) do
+          local active
+          if tracking > 0 then
+            icon, active = select(2,GetTrackingInfo(tracking))
+          end
+          if not trigger.use_inverse and active then
+            break
+          end
+        end
+      end
+      return icon or "Interface\\Minimap\\Tracking\\None"
     end,
     automaticrequired = true
   },
