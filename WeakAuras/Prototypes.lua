@@ -703,6 +703,23 @@ function WeakAuras.IsSpellKnownIncludingPet(spell)
   end
 end
 
+local function GetNumGlyphSlots()
+    if not NUM_GLYPH_SLOTS then
+        GlyphFrame_LoadUI()
+    end
+    return NUM_GLYPH_SLOTS
+end
+
+function WeakAuras.IsGlyphActive(glyphId)
+  local activeTalentGroup = GetActiveTalentGroup()
+  for socketID = 1, GetNumGlyphSlots() do
+    local _, _, spellID = GetGlyphSocketInfo(socketID, activeTalentGroup)
+    if spellID and spellID == glyphId then
+      return true
+    end
+  end
+end
+
 local function valuesForTalentFunction(trigger)
   return function()
     local single_class;
@@ -890,6 +907,13 @@ Private.load_prototype = {
       test = "WeakAuras.IsSpellKnownForLoad(%s, %s)",
       events = {"SPELLS_CHANGED"},
       showExactOption = true
+    },
+    {
+      name = "glyphactive",
+      display = L["Glyph Active"],
+      type = "spell",
+      test = "WeakAuras.IsGlyphActive(%s)",
+      events = {"GLYPH_UPDATED", "ACTIVE_TALENT_GROUP_CHANGED"}
     },
     {
       name = "faction",
