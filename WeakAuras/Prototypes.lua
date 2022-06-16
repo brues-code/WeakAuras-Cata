@@ -4616,7 +4616,7 @@ Private.event_prototypes = {
         local questIndex
         for i = 1, GetNumQuestLogEntries() do
             local title, level, _, _, _, _, isComplete, _, logId = GetQuestLogTitle(i)
-            if (numQuestID and logId == tonumber(questID)) or title == questID then
+            if (numQuestID and logId == numQuestID) or title == questID then
               questIndex = i
               if not showComplete or isComplete then
                 active = true
