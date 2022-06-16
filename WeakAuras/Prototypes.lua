@@ -4612,20 +4612,20 @@ Private.event_prototypes = {
         local active = false
         local questID = %q
         local numQuestID = tonumber(questID)
-        local showComplete = %q == "true"
+        local showComplete = %q
         local questIndex
         for i = 1, GetNumQuestLogEntries() do
             local title, level, _, _, _, _, isComplete, _, logId = GetQuestLogTitle(i)
             if (numQuestID and logId == numQuestID) or title == questID then
               questIndex = i
-              if not showComplete or isComplete then
+              if showComplete == "" or showComplete == tostring(isComplete) then
                 active = true
               end
               break
             end
         end
       ]]
-      return ret:format(trigger.questID or 0, trigger.use_complete and "true" or "false")
+      return ret:format(trigger.questID or 0, trigger.use_complete ~= nil and (trigger.use_complete and "1" or "0") or "")
     end,
     statesParameter = "one",
     args = {
@@ -4640,7 +4640,7 @@ Private.event_prototypes = {
         name = "complete",
         test = "active",
         display = L["Complete"],
-        type = "toggle",
+        type = "tristate",
         test = "true",
       },
       {
