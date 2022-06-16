@@ -4595,6 +4595,64 @@ Private.event_prototypes = {
     end,
     automaticrequired = true
   },
+
+  
+  ["QuestLog"] = {
+    type = "unit",
+    events = {
+      ["events"] = {
+        "QUEST_LOG_UPDATE"
+      }
+    },
+    internal_events = { "WA_DELAYED_PLAYER_ENTERING_WORLD" },
+    force_events = "WA_DELAYED_PLAYER_ENTERING_WORLD",
+    name = L["Quest Log"],
+    init = function(trigger)
+      local ret = [[
+        local active = false
+        local questID = %q
+        local numQuestID = tonumber(questID)
+        local showComplete = %q == "true"
+        local questIndex
+        for i = 1, GetNumQuestLogEntries() do
+            local title, level, _, _, _, _, isComplete, _, logId = GetQuestLogTitle(i)
+            if (numQuestID and logId == tonumber(questID)) or title == questID then
+              questIndex = i
+              if not showComplete or isComplete then
+                active = true
+              end
+            end
+        end
+      ]]
+      return ret:format(trigger.questID or 0, trigger.use_complete and "true" or "false")
+    end,
+    statesParameter = "one",
+    args = {
+      {
+        name = "questID",
+        display = L["Quest ID"],
+        type = "string",
+        test = "active",
+        store = true
+      },
+      {
+        name = "complete",
+        test = "active",
+        display = L["Complete"],
+        type = "toggle",
+        test = "true",
+      },
+      {
+        name = "questIndex",
+        init = "questIndex",
+        hidden = true,
+        test = "true",
+        store = true
+      },
+    },
+    automaticrequired = true
+  },
+
   ["Weapon Enchant"] = {
     type = "item",
     events = {},
