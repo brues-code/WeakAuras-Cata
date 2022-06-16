@@ -4604,8 +4604,6 @@ Private.event_prototypes = {
         "QUEST_LOG_UPDATE"
       }
     },
-    internal_events = { "WA_DELAYED_PLAYER_ENTERING_WORLD" },
-    force_events = "WA_DELAYED_PLAYER_ENTERING_WORLD",
     name = L["Quest Log"],
     init = function(trigger)
       local ret = [[
@@ -4621,6 +4619,7 @@ Private.event_prototypes = {
               if not showComplete or isComplete then
                 active = true
               end
+              break
             end
         end
       ]]
