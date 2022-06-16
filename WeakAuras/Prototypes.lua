@@ -4651,6 +4651,18 @@ Private.event_prototypes = {
         store = true
       },
     },
+    nameFunc = function(trigger)
+      local questID = trigger and trigger.questID or nil
+      if questID then
+        local numQuestID = tonumber(questID)
+        for i = 1, GetNumQuestLogEntries() do
+          local title, level, _, _, _, _, isComplete, _, logId = GetQuestLogTitle(i)
+          if (numQuestID and logId == numQuestID) or title == questID then
+            return title
+          end
+        end
+      end
+    end,
     automaticrequired = true
   },
 
