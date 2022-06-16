@@ -704,10 +704,10 @@ function WeakAuras.IsSpellKnownIncludingPet(spell)
 end
 
 local function GetNumGlyphSlots()
-    if not NUM_GLYPH_SLOTS then
-        GlyphFrame_LoadUI()
-    end
-    return NUM_GLYPH_SLOTS
+  if not NUM_GLYPH_SLOTS then
+    GlyphFrame_LoadUI()
+  end
+  return NUM_GLYPH_SLOTS
 end
 
 function WeakAuras.IsGlyphActive(glyphId)
