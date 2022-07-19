@@ -67,12 +67,6 @@ local B64tobyte = {
   ["4"]=56,["5"]=57,["6"]=58,["7"]=59,["8"]=60,["9"]=61,["("]=62,[")"]=63
 }
 
-local SERVER_WITH_NO_ENCODING = {
-  ["Sindragosa"] = true
-}
-
-local USE_ENCODING = not SERVER_WITH_NO_ENCODING[GetRealmName()]
-local USE_CROSSREALM_MESSAGE = false
 -- This code is based on the Encode7Bit algorithm from LibCompress
 -- Credit goes to Galmok (galmok@gmail.com)
 local decodeB64Table = {}
@@ -150,16 +144,6 @@ function CompressDisplay(data)
   return copiedData;
 end
 
-
-local function is_friend(who)
-	for i = 1, GetNumFriends() do
-		local toonName = GetFriendInfo(i)
-		if toonName and who:lower() == toonName:lower() then
-			return true
-		end
-	end
-end
-
 local function filterFunc(_, event, msg, player, l, cs, t, flag, channelId, ...)
   if flag == "GM" or flag == "DEV" or (event == "CHAT_MSG_CHANNEL" and type(channelId) == "number" and channelId > 0) then
     return
@@ -181,7 +165,17 @@ local function filterFunc(_, event, msg, player, l, cs, t, flag, channelId, ...)
     end
   until(done)
   if newMsg ~= "" then
-    if event == "CHAT_MSG_WHISPER" and not UnitInRaid(player) and not UnitInParty(player) and not UnitIsInMyGuild(player) and not is_friend(player) then
+    if event == "CHAT_MSG_WHISPER" and not UnitInRaid(player) and not UnitInParty(player) then -- XXX: Need a guild check
+      local _, num = BNGetNumFriends()
+      for i=1, num do
+        local toon = BNGetNumFriendToons(i)
+        for j=1, toon do
+          local _, rName, rGame = BNGetFriendToonInfo(i, j)
+          if rName == player and rGame == "WoW" then
+            return false, newMsg, player, l, cs, t, flag, channelId, ...; -- Player is a real id friend, allow it
+          end
+        end
+      end
       return true -- Filter strangers
     else
       return false, newMsg, player, l, cs, t, flag, channelId, ...;
@@ -669,40 +663,32 @@ end
 local compressedTablesCache = {}
 
 function TableToString(inTable, forChat)
-  local serialized 
-  if USE_ENCODING or forChat then
-    serialized = LibSerialize:SerializeEx(configForLS, inTable)
+  local serialized = LibSerialize:SerializeEx(configForLS, inTable)
+  local compressed
+  -- get from / add to cache
+  if compressedTablesCache[serialized] then
+    compressed = compressedTablesCache[serialized].compressed
+    compressedTablesCache[serialized].lastAccess = time()
   else
-    serialized = Serializer:Serialize(inTable)
+    compressed = LibDeflate:CompressDeflate(serialized, configForDeflate)
+    compressedTablesCache[serialized] = {
+      compressed = compressed,
+      lastAccess = time(),
+    }
   end
-  local compressed = serialized
-  if USE_ENCODING or forChat then
-    -- get from / add to cache
-    if compressedTablesCache[serialized] then
-      compressed = compressedTablesCache[serialized].compressed
-      compressedTablesCache[serialized].lastAccess = time()
-    else
-      compressed = LibDeflate:CompressDeflate(serialized, configForDeflate)
-      compressedTablesCache[serialized] = {
-        compressed = compressed,
-        lastAccess = time(),
-      }
-    end
-    -- remove cache items after 5 minutes
-    for k, v in pairs(compressedTablesCache) do
-      if v.lastAccess < (time() - 300) then
-        compressedTablesCache[k] = nil
-      end
+  -- remove cache items after 5 minutes
+  for k, v in pairs(compressedTablesCache) do
+    if v.lastAccess < (time() - 300) then
+      compressedTablesCache[k] = nil
     end
   end
-
-  local encoded = compressed
+  local encoded = "!WA:2!"
   if(forChat) then
-    encoded = LibDeflate:EncodeForPrint(compressed)
-  elseif USE_ENCODING then
-    encoded = LibDeflate:EncodeForWoWAddonChannel(compressed)
+    encoded = encoded .. LibDeflate:EncodeForPrint(compressed)
+  else
+    encoded = encoded .. LibDeflate:EncodeForWoWAddonChannel(compressed)
   end
-  return "!WA:2!" .. encoded
+  return encoded
 end
 
 function StringToTable(inString, fromChat)
@@ -718,14 +704,14 @@ function StringToTable(inString, fromChat)
     encoded, encodeVersion = inString:gsub("^%!", "")
   end
 
-  local decoded = encoded
+  local decoded
   if(fromChat) then
     if encodeVersion > 0 then
       decoded = LibDeflate:DecodeForPrint(encoded)
     else
       decoded = decodeB64(encoded)
     end
-  elseif USE_ENCODING then
+  else
     decoded = LibDeflate:DecodeForWoWAddonChannel(encoded)
   end
 
@@ -733,20 +719,18 @@ function StringToTable(inString, fromChat)
     return "Error decoding."
   end
 
-  local decompressed, errorMsg = decoded, "unknown compression method"
-  if USE_ENCODING or fromChat then
-    if encodeVersion > 0 then
-      decompressed = LibDeflate:DecompressDeflate(decoded)
-    else
-      decompressed, errorMsg = Compresser:Decompress(decoded)
-    end
-    if not(decompressed) then
-      return "Error decompressing: " .. errorMsg
-    end
+  local decompressed, errorMsg = nil, "unknown compression method"
+  if encodeVersion > 0 then
+    decompressed = LibDeflate:DecompressDeflate(decoded)
+  else
+    decompressed, errorMsg = Compresser:Decompress(decoded)
+  end
+  if not(decompressed) then
+    return "Error decompressing: " .. errorMsg
   end
 
   local success, deserialized
-  if encodeVersion < 2 or (not USE_ENCODING and not fromChat) then
+  if encodeVersion < 2 then
     success, deserialized = Serializer:Deserialize(decompressed)
   else
     success, deserialized = LibSerialize:Deserialize(decompressed)
@@ -761,9 +745,9 @@ function WeakAuras.DisplayToString(id, forChat)
   local data = WeakAuras.GetData(id);
   if(data) then
     data.uid = data.uid or GenerateUniqueID()
-    local children = data.controlledChildren;
     local transmitData = CompressDisplay(data);
-    local transmit = {
+    local children = data.controlledChildren;
+       local transmit = {
       m = "d",
       d = transmitData,
       v = 1421, -- Version of Transmisson, won't change anymore.
@@ -836,10 +820,7 @@ end
 function Private.DataToString(id)
   local data = WeakAuras.GetData(id)
   if data then
-    if USE_ENCODING then
-      return Private.SerializeTable(data):gsub("|", "||")
-    end
-    return Serializer:Serialize(data):gsub("|", "||")
+    return Private.SerializeTable(data):gsub("|", "||")
   end
 end
 
@@ -1731,20 +1712,17 @@ WeakAuras.ImportString = WeakAuras.Import
 
 local function crossRealmSendCommMessage(prefix, text, target, queueName, callbackFn, callbackArg)
   local chattype = "WHISPER"
-
-  if USE_CROSSREALM_MESSAGE and target then
+--[[
+  if target then
     if UnitInRaid(target) then
       chattype = "RAID"
       text = ("§§%s:%s"):format(target, text)
     elseif UnitInParty(target) then
       chattype = "PARTY"
       text = ("§§%s:%s"):format(target, text)
-    elseif UnitIsInMyGuild(target) then
-      chattype = "GUILD"
-      text = ("§§%s:%s"):format(target, text)
     end
   end
-
+]]
   Comm:SendCommMessage(prefix, text, chattype, target, queueName, callbackFn, callbackArg)
 end
 
@@ -1779,12 +1757,16 @@ function TransmitDisplay(id, characterName)
 end
 
 Comm:RegisterComm("WeakAurasProg", function(prefix, message, distribution, sender)
-  if distribution == "PARTY" or distribution == "RAID" or distribution == "GUILD" then
-    local dest, msg = string.match(message, "^§§([^:]+):(.+)$")
-    if dest == UnitName("player") then
-      message = msg
-    else
-      return
+  if distribution == "PARTY" or distribution == "RAID" then
+    local dest, msg = string.match(message, "^§§(.+):(.+)$")
+    if dest then
+      local dName, dServer = string.match(dest, "^(.*)-(.*)$")
+      local myName, myServer = UnitName("player")
+      if myName == dName and myServer == dServer then
+        message = msg
+      else
+        return
+      end
     end
   end
   if tooltipLoading and ItemRefTooltip:IsVisible() and safeSenders[sender] then
@@ -1805,12 +1787,16 @@ Comm:RegisterComm("WeakAurasProg", function(prefix, message, distribution, sende
 end)
 
 Comm:RegisterComm("WeakAuras", function(prefix, message, distribution, sender)
-  if distribution == "PARTY" or distribution == "RAID" or distribution == "GUILD" then
+  if distribution == "PARTY" or distribution == "RAID" then
     local dest, msg = string.match(message, "^§§([^:]+):(.+)$")
-    if dest == UnitName("player") then
-      message = msg
-    else
-      return
+    if dest then
+      local dName, dServer = string.match(dest, "^(.*)-(.*)$")
+      local myName, myServer = UnitName("player")
+      if myName == dName and myServer == dServer then
+        message = msg
+      else
+        return
+      end
     end
   end
   local received = StringToTable(message);
