@@ -2487,25 +2487,23 @@ do
       bar.dbmType = dbmType
 
       local r, g, b = 0, 0, 0
-      if DBM.Bars then
-        local barOptions = DBM.Bars.options
-        if dbmType == 1 then
-          r, g, b = barOptions.StartColorAR, barOptions.StartColorAG, barOptions.StartColorAB
-        elseif dbmType == 2 then
-          r, g, b = barOptions.StartColorAER, barOptions.StartColorAEG, barOptions.StartColorAEB
-        elseif dbmType == 3 then
-          r, g, b = barOptions.StartColorDR, barOptions.StartColorDG, barOptions.StartColorDB
-        elseif dbmType == 4 then
-          r, g, b = barOptions.StartColorIR, barOptions.StartColorIG, barOptions.StartColorIB
-        elseif dbmType == 5 then
-          r, g, b = barOptions.StartColorRR, barOptions.StartColorRG, barOptions.StartColorRB
-        elseif dbmType == 6 then
-          r, g, b = barOptions.StartColorPR, barOptions.StartColorPG, barOptions.StartColorPB
-        elseif dbmType == 7 then
-          r, g, b = barOptions.StartColorUIR, barOptions.StartColorUIG, barOptions.StartColorUIB
-        else
-          r, g, b = barOptions.StartColorR, barOptions.StartColorG, barOptions.StartColorB
-        end
+      local barOptions = DBM.ReleaseRevision >= 20220412000000 and DBT.Options or DBM.Bars.options
+      if dbmType == 1 then
+        r, g, b = barOptions.StartColorAR, barOptions.StartColorAG, barOptions.StartColorAB
+      elseif dbmType == 2 then
+        r, g, b = barOptions.StartColorAER, barOptions.StartColorAEG, barOptions.StartColorAEB
+      elseif dbmType == 3 then
+        r, g, b = barOptions.StartColorDR, barOptions.StartColorDG, barOptions.StartColorDB
+      elseif dbmType == 4 then
+        r, g, b = barOptions.StartColorIR, barOptions.StartColorIG, barOptions.StartColorIB
+      elseif dbmType == 5 then
+        r, g, b = barOptions.StartColorRR, barOptions.StartColorRG, barOptions.StartColorRB
+      elseif dbmType == 6 then
+        r, g, b = barOptions.StartColorPR, barOptions.StartColorPG, barOptions.StartColorPB
+      elseif dbmType == 7 then
+        r, g, b = barOptions.StartColorUIR, barOptions.StartColorUIG, barOptions.StartColorUIB
+      else
+        r, g, b = barOptions.StartColorR, barOptions.StartColorG, barOptions.StartColorB
       end
       bar.dbmColor = {r, g, b}
 
